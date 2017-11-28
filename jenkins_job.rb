@@ -1,3 +1,4 @@
+# A representation of a single Job with custom configuration (e.g environment)
 class JenkinsJob
   attr_reader :slang_name, :jenkins_name, :parameters
 
@@ -23,5 +24,9 @@ class JenkinsJob
   def add_branch(branch)
     @selected_branch = branch
     @parameters[:BUILD_BRANCH] = @selected_branch
+  end
+
+  def ==(job)
+    @jenkins_name == job.jenkins_name && @parameters == job.parameters
   end
 end
