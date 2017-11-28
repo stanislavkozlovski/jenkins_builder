@@ -1,8 +1,9 @@
 class JenkinsBuild
-  attr_reader :name
+  attr_reader :slang_name, :jenkins_name
 
-  def initialize(name, default_env=nil, default_branch=nil)
-    @name = name
+  def initialize(slang_name, jenkins_name, default_env = nil, default_branch = nil)
+    @slang_name = slang_name
+    @jenkins_name = jenkins_name
     @default_env = default_env
     @default_branch = default_branch
     @selected_env = default_env
