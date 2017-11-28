@@ -21,11 +21,17 @@ module ConfigParser
   #
   # Parses the Jenkins credentials from the .env file
   #
-  def parse_credentials
+  def parse_jenkins_credentials
     Dotenv.load
 
     JenkinsCredentials.new(username: ENV['JENKINS_USERNAME'],
                            api_token: ENV['JENKINS_API_TOKEN'],
                            server_url: ENV['JENKINS_URL'])
+  end
+
+  def parse_google_credentials
+    Dotenv.load
+
+    [ENV['GOOGLE_USERNAME'], ENV['GOOGLE_PASSWORD']]
   end
 end

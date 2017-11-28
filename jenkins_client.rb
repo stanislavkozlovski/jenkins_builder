@@ -4,6 +4,10 @@ require_relative 'jenkins_build'
 class JenkinsClient
   attr_reader :client
 
+  class InexistentJobException < StandardError; end
+
+  class JobFailureException < StandardError; end
+
   def initialize(credentials:, builds:, logger:)
     @credentials = credentials
     @client = JenkinsApi::Client.new(server_url: credentials.server_url,
@@ -17,7 +21,6 @@ class JenkinsClient
       hash
     end
     @currently_building = []
-    @lock = Mutex.new
 
     @logger.info("Initialized jobs #{@builds_by_name.keys.join(', ')}")
   end
@@ -25,10 +28,14 @@ class JenkinsClient
   def build_job(job_name)
     # validate the name
     job = @builds_by_name[job_name]
+    if job.nil?
+      raise InexistentJobException, "Queried job #{job_name} is does not exist"
+    end
+
     actual_job_name = @client.job.list(job.jenkins_name).first
     if actual_job_name != job.jenkins_name
       @logger.error("Tried to find a job named #{job.jenkins_name}, but found #{actual_job_name} (#{actual_job_name.class})!")
-      raise Exception, "Queried job #{job_name} is not #{actual_job_name}"
+      raise InexistentJobException, "Queried job #{job_name} is not #{actual_job_name}"
     end
 
     build_number = @client.job.get_current_build_number(job.jenkins_name) + 1
@@ -36,26 +43,28 @@ class JenkinsClient
     @client.job.build(job.jenkins_name, **job.parameters)
     build = JenkinsBuild.new(job, build_number)
 
-    @lock.synchronize do
-      @currently_building << job
-    end
+    @currently_building << build
 
-    initiate_job_status_polling(build)
+    is_successful = initiate_job_status_polling(build)
+    raise JobFailureException, "Build ##{build_number} for #{actual_job_name} has failed with status #{@last_status}" unless is_successful
   end
 
+  #
+  # Starts polling the job, tracking if it has completed successfully
+  # @return - true or false, depending if the job succeeded
+  #
   def initiate_job_status_polling(build)
-    Thread.new do
-      while true
-        current_status = @client.job.get_current_build_status(build.jenkins_name)
-        if current_status != 'running'
-          @logger.info("Job ##{build.build_number} of #{build.slang_name} has ended with status #{current_status.upcase}")
-          break
-        end
-        sleep 1
+    while true
+      current_status = @client.job.get_current_build_status(build.jenkins_name).upcase
+      if current_status != JenkinsBuild::RUNNING_STATUS
+        @logger.info("Job ##{build.build_number} of #{build.slang_name} has ended with status #{current_status}")
+        @last_status = current_status
+        break
       end
-      @lock.synchronize do
-        @currently_building.delete_if { |building_job| building_job == job}
-      end
+      sleep 1
     end
+    @currently_building.delete_if { |building_job| building_job == build}
+
+    @last_status == JenkinsBuild::SUCCESSFUL_STATUS
   end
 end

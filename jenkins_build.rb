@@ -3,6 +3,9 @@
 class JenkinsBuild
   attr_reader :job, :build_number
 
+  RUNNING_STATUS, SUCCESSFUL_STATUS = 'RUNNING', 'SUCCESS'
+
+
   def initialize(job, build_number)
     @job = job
     @build_number = build_number
