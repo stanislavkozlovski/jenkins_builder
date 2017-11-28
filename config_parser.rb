@@ -1,5 +1,5 @@
 require 'dotenv'
-require_relative './jenkins_build'
+require_relative './jenkins_job'
 require_relative './jenkins_credentials'
 
 # Functions for translating configurable values into domain types
@@ -12,8 +12,8 @@ module ConfigParser
   def parse_builds
     builds = YAML.load_file('builds.yml')
     builds.inject([]) do |list, (build_name, settings)|
-      list << JenkinsBuild.new(build_name, settings['name'],
-                               settings['default_env'], settings['default_branch'])
+      list << JenkinsJob.new(build_name, settings['name'],
+                             settings['default_env'], settings['default_branch'])
       list
     end
   end

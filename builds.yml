@@ -1,5 +1,0 @@
-soap:
-  name: multi-Admin-Tool-RUBY-2.1
-  default_env: theta
-  default_branch: develop
-
