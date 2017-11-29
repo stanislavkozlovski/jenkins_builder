@@ -1,6 +1,9 @@
 require 'selenium-webdriver'
 
 class JiraClient
+
+  class NonExistentTicketError < StandardError; end
+
   def initialize(username, password)
     @username = username
     @password = password
@@ -16,14 +19,14 @@ class JiraClient
   end
 
   def authenticate
-    @driver.navigate.to 'https://sumupteam.atlassian.net/browse/SRP-238'
+    @driver.navigate.to 'https://sumupteam.atlassian.net/'
 
     element = @driver.find_element(id: 'google-signin-button')
 
     element.click
 
     element = @driver.find_element(id: 'identifierId')
-    element.send_key(ggl_us)
+    element.send_key(@username)
 
     element = @driver.find_element(id: 'identifierNext')
     element.click
@@ -31,14 +34,30 @@ class JiraClient
 
     sleep 1
     element = @driver.find_element(xpath: "//div[@id='password']//input[@type='password']")
-    element.send_key(ggl_pw)
+    element.send_key(@password)
 
     element = @driver.find_element(id: 'passwordNext')
     element.click
   end
 
   def comment(ticket_tag, comment)
-    driver.navigate.to "https://sumupteam.atlassian.net/browse/#{ticket_tag}"
+    retries = 0
+    while @driver.current_url !=  "https://sumupteam.atlassian.net/browse/#{ticket_tag}"
+      if retries > 3
+        raise NonExistentTicketError, "Could not find Jira ticket #{ticket_tag}"
+      end
+      sleep 1
+      @driver.navigate.to "https://sumupteam.atlassian.net/browse/#{ticket_tag}"
+      retries += 1
+    end
+
+    begin
+      @driver.find_element(class: 'issue-error')
+      raise NonExistentTicketError, "Could not find Jira ticket #{ticket_tag}"
+    rescue Selenium::WebDriver::Error::NoSuchElementError
+      # ignored
+    end
+
     sleep 8
     element = @driver.find_element(id: 'footer-comment-button')
     element.click
@@ -47,8 +66,9 @@ class JiraClient
     element.send_keys(comment)
     sleep 2
 
-    # element = @driver.find_element(id: 'issue-comment-add-submit')
-    # element.click
+    element = @driver.find_element(id: 'issue-comment-add-submit')
+    element.click
+    sleep 2
 
     @driver.quit
   end
