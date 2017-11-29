@@ -1,21 +1,29 @@
 require 'dotenv'
 require_relative './jenkins_job'
 require_relative './jenkins_credentials'
+require_relative './jira_options'
 
 # Functions for translating configurable values into domain types
 module ConfigParser
   module_function
 
+  @parsed_options = YAML.load_file('options.yml')
+
   #
-  # Parses the builds.yml file and returns a list of JenkinsBuild objects
+  # Parses the options.yml file and returns a list of JenkinsBuild objects
   #
   def parse_builds
-    builds = YAML.load_file('builds.yml')
+    builds = @parsed_options['builds']
     builds.inject([]) do |list, (build_name, settings)|
       list << JenkinsJob.new(build_name, settings['name'],
                              settings['default_env'], settings['default_branch'])
       list
     end
+  end
+
+  def parse_jira_options
+    jira_options = @parsed_options['jira']
+    JiraOptions.new(jira_options['base_url'], jira_options['default_comment'])
   end
 
   #

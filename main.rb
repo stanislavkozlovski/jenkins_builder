@@ -8,8 +8,6 @@ require_relative './config_parser'
 
 Dotenv.load
 
-
-
 if ARGV[0].nil?
   JenkinsLogger.error('You must add a job name as  the first argument')
   abort
@@ -30,18 +28,20 @@ end
 optparse.parse!
 job_name = ARGV[0]
 
-j_credentials = ConfigParser.parse_jenkins_credentials
-j_client = JenkinsClient.new(credentials: j_credentials,
-                             builds:     ConfigParser.parse_builds,
-                             logger: JenkinsLogger)
+# j_credentials = ConfigParser.parse_jenkins_credentials
+# j_client = JenkinsClient.new(credentials: j_credentials,
+#                              builds:      ConfigParser.parse_builds,
+#                              logger:      JenkinsLogger)
 
 
 begin
-  j_client.build_job(job_name)
+  # j_client.build_job(job_name)
+
   if options[:jira_ticket_tag]
     begin
       ggl_us, ggl_pw = ConfigParser.parse_google_credentials
-      jira_client = JiraClient.new(ggl_us, ggl_pw).start
+      jira_client = JiraClient.new(ggl_us, ggl_pw,
+                                   ConfigParser.parse_jira_options).start
       jira_client.comment(options[:jira_ticket_tag], 'Hello')
     rescue JiraClient::NonExistentTicketError => e
       JenkinsLogger.warn(e.message)
