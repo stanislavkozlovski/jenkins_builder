@@ -6,25 +6,24 @@ require_relative './jira_client'
 require_relative './logger'
 require_relative './config_parser'
 
-Dotenv.load
-
 if ARGV[0].nil?
   JenkinsLogger.error('You must add a job name as  the first argument')
   abort
 end
 
 options = {}
-
 optparse = OptionParser.new do|opts|
-  # Set a banner, displayed at the top
-  # of the help screen.
   opts.banner = 'Usage: builder.rb [options] application_name'
 
-  opts.on( '-j', '--jira_ticket TICKET_TAG', 'Add a comment to a jira ticket' ) do |tag|
+  opts.on('-j', '--jira_ticket TICKET_TAG', 'Add a comment to a jira ticket' ) do |tag|
     options[:jira_ticket_tag] = tag
   end
-end
 
+  opts.on('-h', '--help', 'Prints this help') do
+    puts opts
+    exit
+  end
+end
 optparse.parse!
 job_names = ARGV.clone
 
@@ -33,6 +32,7 @@ j_client = JenkinsClient.new(credentials: j_credentials,
                              builds:      ConfigParser.parse_builds,
                              logger:      JenkinsLogger)
 
+# Validate that the jobs exist and do not run build if one does not exist
 job_names.each do |job_name|
   begin
     j_client.validate_job!(job_name)
