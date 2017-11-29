@@ -14,8 +14,14 @@ module ConfigParser
   #
   def parse_builds
     builds = @parsed_options['builds']
+    env_parameter = builds['jenkins_meta_options']['environment_parameter']
+    branch_parameter = builds['jenkins_meta_options']['branch_parameter']
+
     builds.inject([]) do |list, (build_name, settings)|
+      next list if build_name == 'jenkins_meta_options'
+
       list << JenkinsJob.new(build_name, settings['name'],
+                             env_parameter, branch_parameter,
                              settings['default_env'], settings['default_branch'])
       list
     end
