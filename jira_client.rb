@@ -28,7 +28,6 @@ class JiraClient
 
   def start
     chrome_profile = Selenium::WebDriver::Chrome::Profile.new
-    chrome_profile.add_extension('/Users/stanislavkozlovski/Downloads/extension_1_14_18.crx')
     @driver = Selenium::WebDriver.for(:chrome, profile: chrome_profile)
 
     authenticate
