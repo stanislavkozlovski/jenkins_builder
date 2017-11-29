@@ -26,33 +26,38 @@ optparse = OptionParser.new do|opts|
 end
 
 optparse.parse!
-job_name = ARGV[0]
+job_names = ARGV.clone
 
-# j_credentials = ConfigParser.parse_jenkins_credentials
-# j_client = JenkinsClient.new(credentials: j_credentials,
-#                              builds:      ConfigParser.parse_builds,
-#                              logger:      JenkinsLogger)
+j_credentials = ConfigParser.parse_jenkins_credentials
+j_client = JenkinsClient.new(credentials: j_credentials,
+                             builds:      ConfigParser.parse_builds,
+                             logger:      JenkinsLogger)
 
-
-begin
-  # j_client.build_job(job_name)
-
-  if options[:jira_ticket_tag]
-    begin
-      ggl_us, ggl_pw = ConfigParser.parse_google_credentials
-      jira_client = JiraClient.new(ggl_us, ggl_pw,
-                                   ConfigParser.parse_jira_options).start
-      jira_client.comment(options[:jira_ticket_tag], 'Hello')
-    rescue JiraClient::NonExistentTicketError => e
-      JenkinsLogger.warn(e.message)
-    end
-
+job_names.each do |job_name|
+  begin
+    j_client.validate_job!(job_name)
+  rescue JenkinsClient::InexistentJobException
+    JenkinsLogger.error("Job #{job_name} does not exist!")
+    abort
   end
+end
 
-rescue JenkinsClient::InexistentJobException
-  JenkinsLogger.error("Job #{job_name} does not exist!")
-  abort
-rescue JenkinsClient::JobFailureException => e
-  JenkinsLogger.error("Job #{job_name} failed! #{e.message}")
-  abort
+job_names.each do |job_name|
+  begin
+    j_client.build_job(job_name)
+  rescue JenkinsClient::JobFailureException => e
+    JenkinsLogger.error("Job #{job_name} failed! #{e.message}")
+    abort
+  end
+end
+
+if options[:jira_ticket_tag]
+  begin
+    ggl_us, ggl_pw = ConfigParser.parse_google_credentials
+    jira_client = JiraClient.new(ggl_us, ggl_pw,
+                                 ConfigParser.parse_jira_options).start
+    jira_client.comment(options[:jira_ticket_tag])
+  rescue JiraClient::NonExistentTicketError => e
+    JenkinsLogger.warn(e.message)
+  end
 end

@@ -27,10 +27,26 @@ class JenkinsClient
 
   def build_job(job_name)
     # validate the name
+    job = validate_job!(job_name)
+
+    build_number = @client.job.get_current_build_number(job.jenkins_name) + 1
+    @logger.info("[#{Time.now}] Starting build ##{build_number} for #{job.jenkins_name}")
+    @client.job.build(job.jenkins_name, **job.parameters)
+    build = JenkinsBuild.new(job, build_number)
+
+    @currently_building << build
+
+    is_successful = initiate_job_status_polling(build)
+    raise JobFailureException, "Build ##{build_number} for #{job.jenkins_name} has failed with status #{@last_status}" unless is_successful
+  end
+
+  #
+  # Given a slang name for a job, validates that it exists in JIRA
+  #   if it doesn't, it raises an InexistentJobException
+  #
+  def validate_job!(job_name)
     job = @builds_by_name[job_name]
-    if job.nil?
-      raise InexistentJobException, "Queried job #{job_name} is does not exist"
-    end
+    raise InexistentJobException, "Queried job #{job_name} is does not exist" if job.nil?
 
     actual_job_name = @client.job.list(job.jenkins_name).first
     if actual_job_name != job.jenkins_name
@@ -38,15 +54,7 @@ class JenkinsClient
       raise InexistentJobException, "Queried job #{job_name} is not #{actual_job_name}"
     end
 
-    build_number = @client.job.get_current_build_number(job.jenkins_name) + 1
-    @logger.info("[#{Time.now}] Starting build ##{build_number} for #{actual_job_name}")
-    @client.job.build(job.jenkins_name, **job.parameters)
-    build = JenkinsBuild.new(job, build_number)
-
-    @currently_building << build
-
-    is_successful = initiate_job_status_polling(build)
-    raise JobFailureException, "Build ##{build_number} for #{actual_job_name} has failed with status #{@last_status}" unless is_successful
+    job
   end
 
   #
