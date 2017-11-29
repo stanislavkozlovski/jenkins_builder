@@ -42,15 +42,19 @@ job_names.each do |job_name|
   end
 end
 
-job_names.each do |job_name|
-  begin
-    j_client.build_job(job_name)
-  rescue JenkinsClient::JobFailureException => e
-    JenkinsLogger.error("Job #{job_name} failed! #{e.message}")
-    abort
+# Build the job/jobs
+begin
+  if job_names.length > 1
+    j_client.build_jobs(job_names)
+  else
+    j_client.build_job(job_names.first)
   end
+rescue JenkinsClient::JobFailureException => e
+  JenkinsLogger.error(e.message)
+  abort
 end
 
+# Add a JIRA comment if everything was successful
 if options[:jira_ticket_tag]
   begin
     ggl_us, ggl_pw = ConfigParser.parse_google_credentials

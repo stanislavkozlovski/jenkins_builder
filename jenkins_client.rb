@@ -20,9 +20,44 @@ class JenkinsClient
       hash[build.slang_name] = build
       hash
     end
-    @currently_building = []
+    @failed_builds = []
+    @lock = Mutex.new
 
     @logger.info("Initialized jobs #{@builds_by_name.keys.join(', ')}")
+  end
+
+  #
+  # Builds multiple jobs asynchronously
+  #
+  def build_jobs(job_names)
+    @failed_builds = []  # reset
+    jobs = job_names.map {|job| validate_job!(job)}
+
+    threads = jobs.map do |job|
+      build_number = @client.job.get_current_build_number(job.jenkins_name) + 1
+      @logger.info("[#{Time.now}] Starting build ##{build_number} for #{job.jenkins_name}")
+      @client.job.build(job.jenkins_name, **job.parameters)
+      build = JenkinsBuild.new(job, build_number)
+
+
+      Thread.new do
+        is_successful = initiate_job_status_polling(build)
+        unless is_successful
+          @lock.synchronize do
+            @failed_builds << build
+          end
+        end
+      end
+    end
+
+    threads.each(&:join)
+
+    unless @failed_builds.empty?
+      error_message = @failed_builds.inject('') do |msg, build|
+        msg += "Build ##{build.build_number} for #{build.jenkins_name} has failed with status #{build.final_status}\n"
+      end
+      raise JobFailureException, error_message.strip
+    end
   end
 
   def build_job(job_name)
@@ -34,10 +69,8 @@ class JenkinsClient
     @client.job.build(job.jenkins_name, **job.parameters)
     build = JenkinsBuild.new(job, build_number)
 
-    @currently_building << build
-
     is_successful = initiate_job_status_polling(build)
-    raise JobFailureException, "Build ##{build_number} for #{job.jenkins_name} has failed with status #{@last_status}" unless is_successful
+    raise JobFailureException, "Build ##{build_number} for #{job.jenkins_name} has failed with status #{build.final_status}" unless is_successful
   end
 
   #
@@ -66,13 +99,12 @@ class JenkinsClient
       current_status = @client.job.get_current_build_status(build.jenkins_name).upcase
       if current_status != JenkinsBuild::RUNNING_STATUS
         @logger.info("Job ##{build.build_number} of #{build.slang_name} has ended with status #{current_status}")
-        @last_status = current_status
+        build.final_status = current_status
         break
       end
       sleep 1
     end
-    @currently_building.delete_if { |building_job| building_job == build}
 
-    @last_status == JenkinsBuild::SUCCESSFUL_STATUS
+    build.final_status == JenkinsBuild::SUCCESSFUL_STATUS
   end
 end
