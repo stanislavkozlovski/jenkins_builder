@@ -1,4 +1,5 @@
 require 'jenkins_api_client'
+require 'fuzzy_match'
 require_relative 'jenkins_build'
 
 class JenkinsClient
@@ -20,6 +21,7 @@ class JenkinsClient
       hash[build.slang_name] = build
       hash
     end
+    @fuzzy_matcher = FuzzyMatch.new(@builds_by_name.keys)
     @failed_builds = []
     @lock = Mutex.new
 
@@ -71,6 +73,13 @@ class JenkinsClient
 
     is_successful = initiate_job_status_polling(build)
     raise JobFailureException, "Build ##{build_number} for #{job.jenkins_name} has failed with status #{build.final_status}" unless is_successful
+  end
+
+  #
+  # Given a job name, finds the most similar one on our builds list
+  #
+  def fuzzy_match_job_name(job_name)
+    @fuzzy_matcher.find(job_name)
   end
 
   #

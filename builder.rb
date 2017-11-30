@@ -5,6 +5,7 @@ require_relative './jenkins_client'
 require_relative './jira_client'
 require_relative './logger'
 require_relative './config_parser'
+require_relative './notifier'
 
 if ARGV[0].nil?
   JenkinsLogger.error('You must add a job name as  the first argument')
@@ -33,12 +34,25 @@ j_client = JenkinsClient.new(credentials: j_credentials,
                              logger:      JenkinsLogger)
 
 # Validate that the jobs exist and do not run build if one does not exist
-job_names.each do |job_name|
+job_names.each_with_index do |job_name, idx|
   begin
     j_client.validate_job!(job_name)
   rescue JenkinsClient::InexistentJobException
-    JenkinsLogger.error("Job #{job_name} does not exist!")
-    abort
+    similar_job_name = j_client.fuzzy_match_job_name(job_name)
+
+    if similar_job_name.nil?
+      JenkinsLogger.error("Job #{job_name} does not exist!")
+      abort
+    end
+
+    puts "#{job_name} does not exist. Did you mean #{similar_job_name.bold} (y/n)?"
+    choice = STDIN.gets.chomp
+    unless %w[y Y yes ye yeah ya ys].include?(choice)
+      JenkinsLogger.error('Could not find the desired job. Aborting...')
+      abort
+    end
+
+    job_names[idx] = similar_job_name
   end
 end
 
@@ -46,11 +60,14 @@ end
 begin
   if job_names.length > 1
     j_client.build_jobs(job_names)
+    Notifier.notify("#{job_names.join(',')} have built successfully!")
   else
     j_client.build_job(job_names.first)
+    Notifier.notify("#{job_names.first} has built successfully!")
   end
 rescue JenkinsClient::JobFailureException => e
   JenkinsLogger.error(e.message)
+  Notifier.notify(e.message)
   abort
 end
 

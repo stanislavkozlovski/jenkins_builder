@@ -27,8 +27,7 @@ class JiraClient
   end
 
   def start
-    chrome_profile = Selenium::WebDriver::Chrome::Profile.new
-    @driver = Selenium::WebDriver.for(:chrome, profile: chrome_profile)
+    @driver = Selenium::WebDriver.for(:chrome)
 
     authenticate
     self
