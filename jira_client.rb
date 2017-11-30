@@ -60,9 +60,8 @@ class JiraClient
     end
     element.click
 
-    wait_for(2) do
-      @driver.quit
-    end
+    sleep 3
+    @driver.quit
   end
 
   #
