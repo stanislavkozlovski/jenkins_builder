@@ -38,11 +38,18 @@ builds:
   app1:
     name: Application-1
     default_env: staging
-    default_branch: master
+    staging:
+      name: application-1
+      default_branch: master
   app2:
     name: Application-1
     default_env: staging
-    default_branch: master
+    staging:
+      name: application-1
+      default_branch: master
+    testing:
+      name: application-1-test
+      default_branch: master
 
 jira:
   base_url: company.atlassian.net

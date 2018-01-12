@@ -2,7 +2,7 @@
 class JenkinsJob
   attr_reader :slang_name, :jenkins_name, :parameters
 
-  def initialize(slang_name, jenkins_name, env_parameter, branch_parameter, default_env = nil, default_branch = nil)
+  def initialize(slang_name, jenkins_name, env_parameter, branch_parameter, default_meta_env, default_env = nil, default_branch = nil)
     @slang_name = slang_name
     @jenkins_name = jenkins_name
     @default_env = default_env
@@ -15,6 +15,7 @@ class JenkinsJob
 
     @branch_parameter = branch_parameter.to_sym
     @env_parameter = env_parameter.to_sym
+    @default_meta_env = default_meta_env
     @parameters = {@branch_parameter => @selected_branch,
                    @env_parameter => @selected_env}
   end
@@ -27,6 +28,17 @@ class JenkinsJob
   def add_branch(branch)
     @selected_branch = branch
     @parameters[@branch_parameter] = @selected_branch
+  end
+
+  #
+  # True/False if the environment is the same as this Job's
+  #
+  def is_env?(env)
+    env == @current_env
+  end
+
+  def is_default_meta_env?
+    @current_env == @default_meta_env
   end
 
   def ==(job)

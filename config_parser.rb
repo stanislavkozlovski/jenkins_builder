@@ -11,6 +11,7 @@ module ConfigParser
 
   #
   # Parses the options.yml file and returns a list of JenkinsBuild objects
+  # @return [Array<JenkinsJob>]
   #
   def parse_builds
     builds = @parsed_options['builds']
@@ -20,9 +21,16 @@ module ConfigParser
     builds.inject([]) do |list, (build_name, settings)|
       next list if build_name == 'jenkins_meta_options'
 
-      list << JenkinsJob.new(build_name, settings['name'],
-                             env_parameter, branch_parameter,
-                             settings['default_env'], settings['default_branch'])
+      default_meta_environment = settings['default_env']
+      settings.each do |build_env_name, build_settings|
+        next if build_env_name == 'default_env'
+        next unless build_settings
+        # puts build_settings.inspect
+        list << JenkinsJob.new(build_name, build_settings['name'],
+                               env_parameter, branch_parameter, default_meta_environment,
+                               build_settings['default_env'] || build_env_name, build_settings['default_branch'])
+      end
+
       list
     end
   end

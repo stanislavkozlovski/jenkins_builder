@@ -20,6 +20,10 @@ optparse = OptionParser.new do|opts|
     options[:jira_ticket_tag] = tag
   end
 
+  opts.on('-e', '--environment ENVIRONMENT', 'Explicitly choose the environment' ) do |env|
+    options[:env] = env
+  end
+
   opts.on('-h', '--help', 'Prints this help') do
     puts opts
     exit
@@ -27,6 +31,10 @@ optparse = OptionParser.new do|opts|
 end
 optparse.parse!
 job_names = ARGV.clone
+if job_names.empty?
+  JenkinsLogger.error('You must add a job name as  the first argument')
+  abort
+end
 
 j_credentials = ConfigParser.parse_jenkins_credentials
 j_client = JenkinsClient.new(credentials: j_credentials,
@@ -36,7 +44,7 @@ j_client = JenkinsClient.new(credentials: j_credentials,
 # Validate that the jobs exist and do not run build if one does not exist
 job_names.each_with_index do |job_name, idx|
   begin
-    j_client.validate_job!(job_name)
+    j_client.validate_job!(job_name, options[:env])
   rescue JenkinsClient::InexistentJobException
     similar_job_name = j_client.fuzzy_match_job_name(job_name)
 
@@ -62,7 +70,7 @@ begin
     j_client.build_jobs(job_names)
     Notifier.notify("#{job_names.join(',')} have built successfully!")
   else
-    j_client.build_job(job_names.first)
+    j_client.build_job(job_names.first, options[:env])
     Notifier.notify("#{job_names.first} has built successfully!")
   end
 rescue JenkinsClient::JobFailureException => e

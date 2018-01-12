@@ -18,7 +18,8 @@ class JenkinsClient
 
     # Initialize builds
     @builds_by_name = builds.inject({}) do |hash, build|
-      hash[build.slang_name] = build
+      hash[build.slang_name] ||= []
+      hash[build.slang_name] << build
       hash
     end
     @fuzzy_matcher = FuzzyMatch.new(@builds_by_name.keys)
@@ -62,9 +63,9 @@ class JenkinsClient
     end
   end
 
-  def build_job(job_name)
+  def build_job(job_name, environment)
     # validate the name
-    job = validate_job!(job_name)
+    job = validate_job!(job_name, environment)
 
     build_number = @client.job.get_current_build_number(job.jenkins_name) + 1
     @logger.info("[#{Time.now}] Starting build ##{build_number} for #{job.jenkins_name}")
@@ -83,12 +84,14 @@ class JenkinsClient
   end
 
   #
-  # Given a slang name for a job, validates that it exists in JIRA
+  # Given a slang name for a job, validates that it exists in Jenkins
   #   if it doesn't, it raises an InexistentJobException
   #
-  def validate_job!(job_name)
-    job = @builds_by_name[job_name]
-    raise InexistentJobException, "Queried job #{job_name} is does not exist" if job.nil?
+  def validate_job!(job_name, environment = nil)
+    jobs = @builds_by_name[job_name]
+    raise InexistentJobException, "Queried job #{job_name} is does not exist" if jobs.nil?
+
+    job = @builds_by_name[job_name].select { |job| environment ? job.is_env?(environment) : job.is_default_meta_env? }.first
 
     actual_job_name = @client.job.list(job.jenkins_name).first
     if actual_job_name != job.jenkins_name
