@@ -16,7 +16,7 @@ GEM
       socksify (>= 1.7.0)
       terminal-table (>= 1.4.0)
       thor (>= 0.16.0)
-    json (2.1.0)
+    json (2.3.1)
     mini_portile2 (2.3.0)
     mixlib-shellout (2.2.7)
     nokogiri (1.8.1)
